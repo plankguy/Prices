@@ -7,26 +7,20 @@ const dbConnect = () => {
   };
 
   mongoose.Promise = global.Promise;
+  // Connect to db `priceScraper`
   mongoose.connect('mongodb://localhost/priceScraper', options);
 
   return mongoose.connection;
 };
 
-// const testDbConnection = async (connection) => {
-//   connection
-//     .on('error', console.error.bind(console, 'Mongo database connection error:'))
-//     .on('disconnected', dbConnect())
-//     .once('open', () => {
-//       console.info('Connection to Mongo database successful.');
-//       console.log(mongoose.modelNames());
-//     });
-// };
-
 dbConnect()
   .then(() => {
     console.info('Connection to Mongo database successful.'.green, '\n');
   })
-  .catch((err) => console.error('Mongo database connection error:'.red.bold, err.red));
+  .catch((err) => {
+    console.error('Mongo database connection error:'.red.bold, err.red);
+    process.exit(1);
+  });
 // testDbConnection(dbConnect());
 
 // Define Mongo schema
@@ -50,13 +44,9 @@ const priceSchema = new Schema({
 
 
 priceSchema.methods = {
+  // @NOTE: don't use arrow functions - we don't `this` lexical scope
   kebab: function() {
-    // add some stuff to the users name
-    // this.title = this.title.replace(/\s+/, '-');
-    console.log(mongoose.model('Price').schema.obj);
-    console.log('this.title', this.title);
-
-    return this.title;
+    return this.title.replace(/[\s,_.$!@#$%^&*()=+;:"'/\\<>~`]+/g, '-').toLowerCase();
   },
 };
 

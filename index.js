@@ -6,170 +6,182 @@
  *  - CLI to check specific price by ?
  */
 const puppeteer = require('puppeteer');
-const accounting = require('accounting');
 const colors = require('colors');
 const argv = require('yargs').argv;
 
-const priceSourcesJson = require('./sources.json');
-
+// Pricing models
 const Price = require('./app/models/price');
-
-// create a new price
-// const price = new Price({
-//   title: 'PS4 VR',
-// });
-
-// call the custom method. this will the title replace spaces with dashes
-// price will now be "PS4-VR"
-// price.kebab((err, title) => {
-//   if (err) throw err;
-//
-//   console.log('Your new price title is ' + title);
-// });
-
-// call the built-in save method to save to the database
-// price.save(function(err) {
-//   if (err) throw err;
-//
-//   console.log(price.title, 'Price saved successfully!');
-// });
-
-
-
-// Parse sources json @TODO turn this into rest endpoint
-const priceSources = JSON.parse(JSON.stringify(priceSourcesJson));
+// Price methods
+const priceLibs = require('./app/libs/price');
+const stringPriceToInt = priceLibs.stringPriceToInt;
+const formatPrice = priceLibs.formatPrice;
+const formatPriceDifference = priceLibs.formatPriceDifference;
+// Util methods
+const utilLibs = require('./app/libs/utils');
+const kebab = utilLibs.kebab;
 
 /**
- * Convert the price string to an integer for math
+ * Scrape new price (via cli)
+ * @param {object} priceData pricing object (title, url, selector)
+ * @return {void}
  */
-const stringPriceToInt = (price, decimals = 2) => accounting.toFixed(price, decimals);
+const scrape = async (priceData, screenshot = true) => {
+    const { url, title, selector } = priceData;
+    const diplicates = await Price.where({ url: url }).count();
 
-/**
- * Format the price all pretty-like
- */
-const formatPrice = (price, symbol = '$') => accounting.formatMoney(price, symbol);
+    if (!diplicates) {
+      const sourceName = url.match(/^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n\?\=]+)/i)[1];
+      const browser = await puppeteer.launch({
+          // headless: false,
+      });
+      const page = await browser.newPage();
 
-/**
- * Return the difference of the price
- */
-const formatPriceDifference = (basePrice, currentPrice, symbol = '$') => {
-    const diff = currentPrice - basePrice;
+      // Log
+      console.log('Scraping...'.rainbow.bold.inverse);
 
-    if (diff === 0) {
-        return 'None';
-    } else if (diff < 0) {
-        return formatPrice(-diff, `Decrease of: ${symbol}`);
+      // Navigation
+      await page.goto(`${url}`); // , { waitUntil: ['load', 'domcontentloaded'] }
+      console.info(`Opening url `.cyan.bold);
+      console.info(`${url}`.cyan.underline, '...'.cyan);
+
+      // // Base pricing
+      // const basePriceStr = priceSources.sources[i].basePrice;
+      // const basePriceInt = stringPriceToInt(basePriceStr.replace(/\s/mg, ''));
+      // const basePriceFormatted = formatPrice(basePriceInt, '$');
+
+      // Scraped pricing
+      console.info(`Scraping price selector `.cyan.bold);
+      console.info(`${selector}...`.cyan);
+
+      const currentPriceElement = await page.$(selector);
+      const currentPriceStr = await page.evaluate(
+        (currentPriceElement) => currentPriceElement.textContent.replace(/\s/mg, ''),
+        currentPriceElement
+      );
+      const currentPriceInt = stringPriceToInt(currentPriceStr);
+      const currentPriceFormatted = formatPrice(currentPriceInt, '$');
+      // // Price difference
+      // const priceDiff = await formatPriceDifference(basePriceInt, currentPriceInt);
+
+      //
+      console.info('Getting price for'.cyan.bold, title.cyan.bold.italic, 'from'.cyan.bold, sourceName.cyan.bold.italic.underline);
+      console.info(currentPriceFormatted.cyan
+        // 'Previous price:'.green, basePriceFormatted.green,
+        // '| Price '.green, priceDiff.green,
+      );
+
+      // Take a screenshot for fun
+      if (screenshot) {
+        await page.screenshot({
+          path: `screens/price-${kebab(title)}--${sourceName}.png`,
+          clip: {
+            x:      0,
+            y:      0,
+            width:  1200,
+            height: 1200,
+          },
+        });
+        console.log('Taking screenshot...'.cyan.bold, '\n');
+      }
+
+      // @TODO add error handling
+
+      /** @type {Price} */
+      const price = new Price({
+        title:    title,
+        url:      url,
+        selector: selector,
+        price:    {
+          date:  new Date(),
+          price: currentPriceInt,
+        },
+        prices: [
+          {
+            date:  new Date(),
+            price: currentPriceInt,
+          },
+        ],
+      });
+
+      // Save new price
+      await price.save((error) => {
+        if (error) {
+          console.error('Error saving price to database:'.red.bold, error.red, '\n');
+          process.exit(1);
+        }
+
+        console.log('Price for'.green, `"${title}"`.green.bold, 'saved successfully!'.green, '\n');
+      });
+      // await page.waitForNavigation({ waitUntil: 'networkidle2' });
+
+      await browser.close();
+
+      console.log(`Complete, exiting...`.white);
+      process.exit();
+
     } else {
-        return formatPrice(+diff, `Increase of: ${symbol}`);
+      console.warn('Price for'.yellow, `"${title}"`.yellow.bold, 'already exists, skipping!'.yellow, '\n');
+      process.exit();
     }
 };
 
 
 /**
- *
- */
-const scrape = async (priceData) => {
-    const browser = await puppeteer.launch({
-        // headless: false,
-    });
-    const url = priceData.url;
-    const sourceName = url.match(/^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n\?\=]+)/i)[1]; // /^(?:https?:\/\/)?(?:[^@\/\n]+@)?(?:www\.)?([^:\/\n]+)/i
-    const page = await browser.newPage();
-
-    // Log
-    console.log('Scraping...'.bgCyan.black.bold);
-
-    // Navigation
-    await page.goto(`${url}`); // , { waitUntil: ['load', 'domcontentloaded'] }
-    console.log(`Opening url `.cyan.bold, '\n', `"${url}"`.cyan.underline);
-
-    // // Base pricing
-    // const basePriceStr = priceSources.sources[i].basePrice;
-    // const basePriceInt = stringPriceToInt(basePriceStr.replace(/\s/mg, ''));
-    // const basePriceFormatted = formatPrice(basePriceInt, '$');
-    // Scraped pricing
-    console.log(`Scraping price selector `.cyan.bold, '\n', `"${priceData.selector}"`.cyan);
-    const currentPriceElement = await page.$(priceData.selector);
-    const currentPriceStr = await page.evaluate((currentPriceElement) => currentPriceElement.textContent.replace(/\s/mg, ''), currentPriceElement);
-    const currentPriceInt = await stringPriceToInt(currentPriceStr);
-    const currentPriceFormatted = await formatPrice(currentPriceInt, '$');
-    // // Price difference
-    // const priceDiff = await formatPriceDifference(basePriceInt, currentPriceInt);
-
-    //
-    await console.info(
-      '\n',
-      'Getting price for'.green.bold, priceData.title.green.bold.italic,
-      'from'.green.bold, sourceName.green.bold.italic.underline,
-      '\n',
-      // 'Previous price:'.green, basePriceFormatted.green,
-      'Current price:'.green, currentPriceFormatted.green,
-      // '| Price '.green, priceDiff.green,
-      '\n',
-    );
-
-
-
-    // screenie
-    await page.screenshot({
-        path: `screens/price-${sourceName}.png`,
-        clip: {
-            x:      0,
-            y:      0,
-            width:  1200,
-            height: 1200,
-        },
-    });
-
-    // await page.waitForNavigation({ waitUntil: 'networkidle2' });
-
-    await browser.close();
-
-    console.log(`Complete, exiting...`.white);
-    process.exit();
-};
-
-
-/**
- *
+ * Initialize the app
+ * @return {void}
  */
 const init = (function() {
 
   // With CLI args, new price
   if (argv.title || argv.url || argv.selector) {
 
+    const {title, url, selector, screenshot} = argv;
+
     // CLI arguments check
-    if (typeof argv.title === 'undefined') {
+    if (typeof title === 'undefined') {
       console.error('CLI Error: '.red.bold, 'You must include the `title` argument: --title="My Product"'.red);
       process.exit(1);
     }
-    if (typeof argv.url === 'undefined') {
+    if (typeof url === 'undefined') {
       console.error('CLI Error: '.red.bold, 'You must include the `url` argument: --url="https://mystore.com/my-product"'.red);
       process.exit(1);
     }
-    if (typeof argv.selector === 'undefined') {
+    if (typeof selector === 'undefined') {
       console.error('CLI Error: '.red.bold, 'You must include the `selector` argument: --selector=".price-selector"'.red);
       process.exit(1);
     }
 
-    /** @type {Price} */
-    const price = new Price({
-      title: argv.title,
-      url: argv.url,
-      selector: argv.selector,
-    });
-
-    // Log
-    console.log('Creating new price:'.gray.bold, '\n', `${price}`.gray, '\n');
-
     // Try the to scrap()
     try {
-      scrape(price);
+      scrape({
+        title,
+        url,
+        selector,
+        screenshot
+      });
     } catch(e) {
       console.error('Cannot run scraper:'.red, e.red);
       process.exit(1);
     }
+
+  // Just return current list
+  } else if (argv.list) {
+
+    console.log('list all prices...'.bold.magenta);
+
+    Price.find({}, (err, prices) => {
+      if (err) {
+        console.error('Could not retrieve prices:'.red.bold, err.red);
+      };
+    });
+
+    process.exit();
+
   } else {
+
     // Scrape stored prices
+    console.log('re-scrape prices for latest...'.bold.magenta);
+
+    process.exit();
   }
-}());
+}(Price));
