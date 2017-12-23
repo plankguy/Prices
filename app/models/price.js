@@ -1,14 +1,14 @@
 const mongoose = require('mongoose');
 const colors = require('colors');
 
-const dbConnect = () => {
+const dbConnect = async () => {
   const options = {
     useMongoClient: true,
   };
 
   mongoose.Promise = global.Promise;
   // Connect to db `priceScraper`
-  mongoose.connect('mongodb://localhost/priceScraper', options);
+  await mongoose.connect('mongodb://localhost/priceScraper', options);
 
   return mongoose.connection;
 };
@@ -41,7 +41,6 @@ const priceSchema = new Schema({
     },
   ],
 });
-
 
 priceSchema.methods = {
   // @NOTE: don't use arrow functions - we don't `this` lexical scope

@@ -35,7 +35,7 @@ const formatPriceDifference = (basePrice, currentPrice, symbol = '$') => {
     }
 };
 
-// Export
+// Exports
 exports.stringPriceToInt = stringPriceToInt;
 exports.formatPrice = formatPrice;
 exports.formatPriceDifference = formatPriceDifference;

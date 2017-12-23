@@ -5,5 +5,5 @@
  */
 const kebab = (string) => string.replace(/[\s,_.$!@#$%^&*()=+;:"'/\\<>~`]+/g, '-').toLowerCase();
 
-// Export
+// Exports
 exports.kebab = kebab;
