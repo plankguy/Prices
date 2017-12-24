@@ -1,5 +1,9 @@
 const accounting = require('accounting');
 
+// Util methods
+const utilLibs = require('../libs/utils');
+const urlDomain = utilLibs.urlDomain;
+
 /**
  * Convert the price string to an integer for math
  * @param  {string}
@@ -35,7 +39,19 @@ const formatPriceDifference = (basePrice, currentPrice, symbol = '$') => {
     }
 };
 
-// Exports
+
+
+/**
+ * Format price log
+ * @param {string} title of item
+ * @param {int} price of item
+ * @param {string} url of item
+ * @return {string}
+ */
+const formatPriceLog = (title, price, url) => `${title} from ${urlDomain(url)} is ${formatPrice(price, '$')}`;
+
+/** Exports */
 exports.stringPriceToInt = stringPriceToInt;
 exports.formatPrice = formatPrice;
 exports.formatPriceDifference = formatPriceDifference;
+exports.formatPriceLog = formatPriceLog;

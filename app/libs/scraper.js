@@ -4,6 +4,27 @@ const colors = require('colors');
 // Pricing models
 const Price = require('../models/price');
 
+// Price methods
+const priceLibs = require('../libs/price');
+const stringPriceToInt = priceLibs.stringPriceToInt;
+const formatPrice = priceLibs.formatPrice;
+const formatPriceDifference = priceLibs.formatPriceDifference;
+const formatPriceLog = priceLibs.formatPriceLog;
+
+// Util methods
+const utilLibs = require('../libs/utils');
+const urlDomain = utilLibs.urlDomain;
+const kebab = utilLibs.kebab;
+
+/**
+ * Scrape new price (via cli)
+ * @param {object} priceData pricing object (title, url, selector)
+ * @return {void}
+ */
+const check = async () => {
+  console.log('checking prices...'.yellow);
+};
+
 /**
  * Scrape new price (via cli)
  * @param {object} priceData pricing object (title, url, selector)
@@ -14,7 +35,7 @@ const scrape = async (priceData, screenshot = true) => {
     const diplicates = await Price.where({ url: url }).count();
 
     if (!diplicates) {
-      const sourceName = url.match(/^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n\?\=]+)/i)[1];
+      const sourceName = urlDomain(url);
       const browser = await puppeteer.launch({
           // headless: false,
       });
@@ -118,6 +139,7 @@ const getPriceList = async () => {
   let prices;
 
   try {
+    // mongoose query all prices
     prices = await Price.find({}, (err, prices) => {
       return prices;
     });
@@ -135,13 +157,16 @@ const getPriceList = async () => {
  * @return {void}
  */
 const list = async () => {
-  const priceList = await getPriceList();
+  const priceListArray = await getPriceList();
 
-  console.log('Price list:'.magenta.bold, colors.magenta(await priceList));
+  for (var i = 0; i < priceListArray.length; i++) {
+    console.info(colors.cyan(formatPriceLog(priceListArray[i].title, priceListArray[i].price.price, priceListArray[i].url)));
+  }
 
-  process.exit()
+  process.exit();
 };
 
-// Exports
+/** Exports */
 exports.scrape = scrape;
 exports.list = list;
+exports.check = check;

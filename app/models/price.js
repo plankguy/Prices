@@ -21,7 +21,6 @@ dbConnect()
     console.error('Mongo database connection error:'.red.bold, err.red);
     process.exit(1);
   });
-// testDbConnection(dbConnect());
 
 // Define Mongo schema
 const Schema = mongoose.Schema;
@@ -53,32 +52,5 @@ priceSchema.methods = {
 // we need to create a model using it
 var Price = mongoose.model('Price', priceSchema);
 
-// make this available to our users in our Node applications
+/** Exports */
 module.exports = Price;
-
-
-
-
-
-// if our price.js file is at app/models/price.js
-// const Price = require('./app/models/price');
-//
-// // create a new price
-// const price = new Price({
-//   title:    'PS4 VR',
-// });
-//
-// // call the custom method. this will the title replace spaces with dashes
-// // price will now be "PS4-VR"
-// price.kebab((err, title) => {
-//   if (err) throw err;
-//
-//   console.log('Your new price title is ' + title);
-// });
-//
-// // call the built-in save method to save to the database
-// price.save(function(err) {
-//   if (err) throw err;
-//
-//   console.log('Price saved successfully!');
-// });

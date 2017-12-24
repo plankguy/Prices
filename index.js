@@ -8,24 +8,11 @@
 const colors = require('colors');
 const argv = require('yargs').argv;
 
-// Pricing models
-const Price = require('./app/models/price');
-
-// Util methods
-const utilLibs = require('./app/libs/utils');
-const kebab = utilLibs.kebab;
-
-// Price methods
-const priceLibs = require('./app/libs/price');
-const stringPriceToInt = priceLibs.stringPriceToInt;
-const formatPrice = priceLibs.formatPrice;
-const formatPriceDifference = priceLibs.formatPriceDifference;
-
 // Scrape methods
 const scraperLibs = require('./app/libs/scraper');
 const scrape = scraperLibs.scrape;
 const list = scraperLibs.list;
-
+const check = scraperLibs.check;
 
 /**
  * Initialize the app
@@ -68,13 +55,30 @@ const init = (async () => {
   // Just return current list
   } else if (argv.list) {
 
-    list();
+    try {
+      list();
+    } catch(e) {
+      console.error('Cannot get price list:'.red, e.red);
+      process.exit(1);
+    }
 
   } else {
 
     // Scrape stored prices
-    console.log('re-scrape prices for latest...'.bold.magenta);
+    // run scraper:
+    // - check if element exists
+    //   - if yes, update entry price & push current price to historical Pricing
+    //   - if no, add new entry
+    // - then, return price differences
+    //   - compare latest price w/ previous
+    //   - show current, previous, difference ($ and %)
+    try {
+      check();
+    } catch(e) {
+      console.error('Cannot check latest prices:'.red, e.red);
+      process.exit(1);
+    }
 
     // process.exit();
   }
-})(Price);
+})();
