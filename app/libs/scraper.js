@@ -21,20 +21,20 @@ const kebab = utilLibs.kebab;
  * @param {object} priceData pricing object (title, url, selector)
  * @return {void}
  */
-const check = async () => {
+const checkPrices = async () => {
   console.log('checking prices...'.yellow);
 };
 
 /**
- * Scrape new price (via cli)
+ * Scrape new price
  * @param {object} priceData pricing object (title, url, selector)
  * @return {void}
  */
-const scrape = async (priceData, screenshot = true) => {
+const scrapePrices = async (priceData, screenshot = true) => {
     const { url, title, selector } = priceData;
-    const diplicates = await Price.where({ url: url }).count();
+    const duplicates = await Price.where({ url: url }).count();
 
-    if (!diplicates) {
+    if (!duplicates) {
       const sourceName = urlDomain(url);
       const browser = await puppeteer.launch({
           // headless: false,
@@ -112,7 +112,7 @@ const scrape = async (priceData, screenshot = true) => {
       await price.save((error) => {
         if (error) {
           console.error('Error saving price to database:'.red.bold, error.red, '\n');
-          process.exit(1);
+          // process.exit(1);
         }
 
         console.log('Price for'.green, `"${title}"`.green.bold, 'saved successfully!'.green, '\n');
@@ -122,11 +122,10 @@ const scrape = async (priceData, screenshot = true) => {
       await browser.close();
 
       console.log(`Complete, exiting...`.white);
-      process.exit();
+      // process.exit();
 
     } else {
       console.warn('Price for'.yellow, `"${title}"`.yellow.bold, 'already exists, skipping!'.yellow, '\n');
-      process.exit();
     }
 };
 
@@ -145,7 +144,6 @@ const getPriceList = async () => {
     });
   } catch (err) {
     console.error('Could not retrieve prices:'.red.bold, err.red);
-    process.exit(1);
   }
 
   return await prices;
@@ -154,19 +152,19 @@ const getPriceList = async () => {
 /**
  * Scrape new price (via cli)
  * @param {object} priceData pricing object (title, url, selector)
- * @return {void}
+ * @return {array} priceListArray 
  */
-const list = async () => {
+const listPrices = async () => {
   const priceListArray = await getPriceList();
 
   for (var i = 0; i < priceListArray.length; i++) {
     console.info(colors.cyan(formatPriceLog(priceListArray[i].title, priceListArray[i].price.price, priceListArray[i].url)));
   }
 
-  process.exit();
+  return priceListArray;
 };
 
 /** Exports */
-exports.scrape = scrape;
-exports.list = list;
-exports.check = check;
+exports.scrapePrices = scrapePrices;
+exports.listPrices = listPrices;
+exports.checkPrices = checkPrices;

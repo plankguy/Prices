@@ -10,9 +10,9 @@ const argv = require('yargs').argv;
 
 // Scrape methods
 const scraperLibs = require('./app/libs/scraper');
-const scrape = scraperLibs.scrape;
-const list = scraperLibs.list;
-const check = scraperLibs.check;
+const scrapePrices = scraperLibs.scrapePrices;
+const listPrices = scraperLibs.listPrices;
+const checkPrices = scraperLibs.checkPrices;
 
 /**
  * Initialize the app
@@ -41,12 +41,12 @@ const init = (async () => {
 
     // Try the to scrap()
     try {
-      scrape({
+      scrapePrices({
         title,
         url,
         selector,
         screenshot
-      });
+      }, true).then(() => process.exit());
     } catch(e) {
       console.error('Cannot run scraper:'.red, e.red);
       process.exit(1);
@@ -56,7 +56,7 @@ const init = (async () => {
   } else if (argv.list) {
 
     try {
-      list();
+      await listPrices().then(() => process.exit());
     } catch(e) {
       console.error('Cannot get price list:'.red, e.red);
       process.exit(1);
@@ -73,7 +73,7 @@ const init = (async () => {
     //   - compare latest price w/ previous
     //   - show current, previous, difference ($ and %)
     try {
-      check();
+      checkPrices().then(() => process.exit());
     } catch(e) {
       console.error('Cannot check latest prices:'.red, e.red);
       process.exit(1);
